@@ -1,0 +1,34 @@
+cpu
+---
+  0     serial rx
+  1     serial tx
+  2     lcd-E
+  3p    wifi irq
+  4     lcd-reg
+  5p    wifi vbat_en
+  6p    wifi sel    (io:10)
+  7     lcd-data(7)
+  8     LED
+  9p    rgt wheel
+  10    lft wheel   (io:6)
+  11-13 wifi spi
+  a0-a2 lcd-data(4-6)
+  a3    V-battery
+  a4-a5 compass i2c
+
+
+audio cannot be used with wifi
+
+audio from SD Card:
+  arduino max burst spi rate 600Kbyte/sec => 1.6 us per interrupt/loop
+  interrupt overhead ~ 100 cycles => 6us (CANNOT USE INTERRUPTS)
+  card read rate is 144 byte block from sd card in 1250 usecs
+  29.3K samples/sec in audio app
+  14.6 Khz audio
+
+audio d/a:
+  30 bits I2C per sample
+  100Khz I2C =>  3333 samples/sec,   1.6 Khz audio
+  400Khz I2C => 13333 samples/sec,   6.6 Khz audio
+  intreq per byte, 400Khz I2C => 20us per interrupt/loop
+  interrupt overhead ~ 100 cycles => 6us (CAN USE INTERRUPTS)
