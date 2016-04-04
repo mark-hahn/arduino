@@ -39,6 +39,11 @@ void setup(void)
     Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
+
+  TWSR = 0;
+  TWBR = 2;
+  // 12 => 736
+  //  2 => 570
   
   /* Display some basic information on this sensor */
   displaySensorDetails();
@@ -48,7 +53,11 @@ void loop(void)
 {
   /* Get a new sensor event */ 
   sensors_event_t event; 
+  
+  uint16_t start = micros();  
   mag.getEvent(&event);
+  uint16_t end = micros();  
+  Serial.println(end-start);
  
   /* Display the results (magnetic vector values are in micro-Tesla (uT)) */
   Serial.print("X: "); Serial.print(event.magnetic.x); Serial.print("  ");

@@ -1,0 +1,60 @@
+cpu
+---
+  0     serial rx
+  1     serial tx
+  2     lcd-E       [sdram sel]
+  3p    wifi irq
+  4     lcd-reg
+  5p    wifi vbat_en
+  6p    wifi sel    (io:10)
+  7     lcd-data(7) [
+  8     LED         [lcd-E]
+  9p    rgt wheel
+  10    lft wheel   (io:6)
+  11-13 wifi spi
+  a0-a2 lcd-data(4-6)
+  a3    V-battery
+  a4-a5 compass i2c
+
+audio cannot be used with wifi
+
+audio from SD Card:
+  arduino max burst spi rate 600Kbyte/sec => 1.6 us per interrupt/loop
+  interrupt overhead ~ 100 cycles => 6us (CANNOT USE INTERRUPTS)
+  card read rate is 144 byte block from sd card in 1250 usecs
+  29.3K samples/sec in audio app
+  14.6 Khz audio
+
+audio d/a:
+  30 bits I2C per sample
+  100Khz I2C =>  3333 samples/sec,   1.6 Khz audio
+  
+  400Khz I2C => 13333 samples/sec,   6.6 Khz audio
+                     156 usecs per sample 6.48Khz, 3.25Khz audio
+                      75 usecs xfer, 76 usecs overhead,  25 usecs/byte  
+                      
+  intreq per byte, 400Khz I2C => 20us per interrupt/loop
+  interrupt overhead ~ 100 cycles => 6us (CAN USE INTERRUPTS)
+  
+  measured: (twsr:0)
+    100K     -- => 444 usecs per sample  2.3Khz
+    400k     12 => 160 usecs per sample  6.3Khz  3.2Khz audio
+    
+    800k      2 => 112 usecs per sample  8.9Khz  4.5Khz audio  <<<<<<<<<<<<
+    1.25 usecs/clk, 78.5 usecs xfr, 33.5 usecs overhead, 11us/byte
+                    
+bat   1m res  0 =>  48 usecs per sample 20.8Khz, 10.4Khz audio
+                    30 usecs xfer, 18 usecs overhead,  6 usecs/byte
+                    
+usb   1m res  0 =>  52 usecs per sample 19.2Khz,  9.6Khz audio
+                    30 usecs xfer, 22 usecs overhead,  7 usecs/byte
+                    
+usb 889k res  1 => 112 usecs per sample  8.9Khz,  4.5Khz audio      ?
+                    34 usecs xfer, 78 usecs overhead, 10 usecs/byte ?
+                                                            
+             slow:  64 usecs per sample 15.6Khz,  7.8Khz audio
+                    30 usecs xfer, 34 usecs overhead, 11 usecs/byte
+                    
+             slow: 100 usecs per sample 10.0Khz,  5.0Khz audio
+                    30 usecs xfer, 70 usecs overhead, 23 usecs/byte
+
