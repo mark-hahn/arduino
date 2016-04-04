@@ -1,0 +1,8 @@
+#   -*-  grammar-ext: sh  -*-
+
+cat m
+
+export ARDUINO_PORT=/dev/ttyACM0
+export ARDUINO_LIBS="SD SPI"
+
+make monitor

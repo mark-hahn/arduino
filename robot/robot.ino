@@ -23,14 +23,14 @@ float mini (int a, int b) {
 
 
 ///////////////////// DEF LED ////////////////////
-#define LED_PIN    8
+#define LED_PIN    7
 void ledOn(){digitalWrite(LED_PIN, HIGH);}
 void ledOff(){digitalWrite(LED_PIN, LOW);}
 
 
 ///////////////////// DEF DISPLAY ////////////////////
 //                RS  E  D4  D5  D6  D7
-LiquidCrystal lcd( 4, 2, A0, A1, A2,  7 );
+LiquidCrystal lcd( 8, 2, A0, A1, A2,  7 );
 
 
 ///////////////////// DEF VBATT ////////////////////

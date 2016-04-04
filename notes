@@ -2,19 +2,19 @@ cpu
 ---
   0     serial rx
   1     serial tx
-  2     lcd-E       [sdram sel]
+  2     lcd-E  
   3p    wifi irq
-  4     lcd-reg
+  4     sdram sel
   5p    wifi vbat_en
   6p    wifi sel    (io:10)
-  7     lcd-data(7) [
-  8     LED         [lcd-E]
+  7     lcd-data(7) + led
+  8     lcd-reg
   9p    rgt wheel
   10    lft wheel   (io:6)
   11-13 wifi spi
   a0-a2 lcd-data(4-6)
   a3    V-battery
-  a4-a5 compass i2c
+  a4-a5 twi i2c (compass, audio, wheel sensors)
 
 audio cannot be used with wifi
 
