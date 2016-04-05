@@ -58,3 +58,7 @@ usb 889k res  1 => 112 usecs per sample  8.9Khz,  4.5Khz audio      ?
              slow: 100 usecs per sample 10.0Khz,  5.0Khz audio
                     30 usecs xfer, 70 usecs overhead, 23 usecs/byte
 
+SD Card:
+   64 or 128 byte read => 5884 -> 6844 usecs
+
+  
