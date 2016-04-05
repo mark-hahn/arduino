@@ -3,6 +3,6 @@
 cat u
 
 export ARDUINO_PORT=/dev/ttyACM0
-export ARDUINO_LIBS="Adafruit_CC3000 Servo LiquidCrystal SPI Wire"
+export ARDUINO_LIBS="Adafruit_CC3000 Servo LiquidCrystal SPI SD Wire"
 
 make upload
