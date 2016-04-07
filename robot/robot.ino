@@ -1,9 +1,9 @@
+#include <SPI.h>
+#include <Wire.h> // I2C
 #include <Servo.h>
 #include <LiquidCrystal.h>
 #include <Adafruit_CC3000.h>
-#include <Wire.h> // I2C
-#include <SPI.h>
-#include <SD.h>
+#include <Adafruit_MCP4725.h>
 #include "utility/debug.h"
 #include "utility/socket.h"
 #include "Sd2Card.h"
@@ -25,9 +25,13 @@ float mini (int a, int b) {
 }
 
 
+///////////////////// DEF DAC ////////////////////
+Adafruit_MCP4725 dac;
+
+
 ///////////////////// DEF SD ////////////////////
 Sd2Card card;
-uint8_t block[128];
+uint8_t block[64];
 
 void printErr() {
   Serial.print(card.errorCode());
@@ -136,6 +140,7 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(CC3000_CS,   CC3000_IRQ,
                                          CC3000_VBAT, SPI_CLOCK_DIVIDER);
 Adafruit_CC3000_Server server(PORT);
 
+
 ///////////////////// ROUTINES WIFI /////////////////////
 bool displayConnectionDetails(void)
 {
@@ -167,16 +172,28 @@ void setup() {
   lcd.begin(16, 2);
 
 
+  //////////////////// SETUP DAC ////////////////////////
+  dac.begin(0x62);
+  
+  dac.setVoltage(250, false); 
+  delayMicroseconds(500);
+  uint16_t start = micros();
+  dac.setVoltage(0, false);
+  uint16_t end = micros();  
+  delayMicroseconds(500); 
+  Serial.print("usecs per DAC sample: "); Serial.println(end-start);
+
+
   //////////////////// SETUP SD ////////////////////////
   if (!card.init(SPI_HALF_SPEED, 4)) { Serial.print("Card Init Err: "); printErr(); }
   Serial.print("Card initialized, size: "); 
   Serial.print(card.cardSize()*512.0/1e9);
   Serial.println(" GB");
   
-  uint32_t start = micros();
-  if (!card.readData(1234, 256, 128, block)) { Serial.print("Card Read Err: "); printErr(); }
-  uint32_t end = micros();
-  Serial.println(end-start);
+  start = micros();
+  if (!card.readData(1234, 256, 64, block)) { Serial.print("Card Read Err: "); printErr(); }
+  end = micros();
+  Serial.print("usecs for 128 byte SD Card read: ");  Serial.println(end-start);
   
 
   //////////////////// SETUP BATT ////////////////////////

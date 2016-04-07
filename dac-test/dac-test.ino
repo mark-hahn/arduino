@@ -4,8 +4,9 @@
 Adafruit_MCP4725 dac;
 
 // Set this value to 9, 8, 7, 6 or 5 to adjust the resolution
-#define DAC_RESOLUTION    (8)
-#define square             1
+#define DAC_RESOLUTION    (5)
+#define timer              1
+#define square             0
 uint16_t amp = 2;
 
 /* Note: If flash space is tight a quarter sine wave is enough
@@ -158,7 +159,7 @@ const PROGMEM uint16_t DACLookup_FullSine_5Bit[32] =
 };
 
 void setup(void) {
-  uint16_t i;
+  // uint16_t i;
   
   Serial.begin(115200);
   Serial.println("start");
@@ -168,47 +169,53 @@ void setup(void) {
   // For MCP4725A2 the address is 0x64 or 0x65
   dac.begin(0x62);
   
-  // if(square) {
-    // while (1) {
-      dac.setVoltage(250, false); 
-      delayMicroseconds(500);
-      uint16_t start = micros();
-      dac.setVoltage(0, false);
-      uint16_t end = micros();  
-      delayMicroseconds(500); 
-    // }
+  if (timer) {
+    dac.setVoltage(250, false); 
+    uint16_t start = micros();
+    dac.setVoltage(0, false);
+    uint16_t end = micros();  
     Serial.println(end-start);
-  // }
+    while(1) delay(1000);
+  }
+  
+  if(square) {
+    while (1) {
+      dac.setVoltage(250, false); 
+      delayMicroseconds(0);
+      dac.setVoltage(0, false);
+      delayMicroseconds(0); 
+    }
+  }
 }
 
 void loop(void) {
-    // uint16_t i;
-    // 
-    // // Push out the right lookup table, depending on the selected resolution
-    // #if DAC_RESOLUTION == 5
-    //   for (i = 0; i < 32; i++)
-    //   {
-    //     dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_5Bit[i]))/amp, false);
-    //   }
-    // #elif DAC_RESOLUTION == 6
-    //   for (i = 0; i < 64; i++)
-    //   {
-    //     dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_6Bit[i]))/amp, false);
-    //   }
-    // #elif DAC_RESOLUTION == 7
-    //   for (i = 0; i < 128; i++)
-    //   {
-    //     dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_7Bit[i]))/amp, false);
-    //   }
-    // #elif DAC_RESOLUTION == 9
-    //   for (i = 0; i < 512; i++)
-    //   {
-    //     dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_9Bit[i]))/amp, false);
-    //   }
-    // #else    // Use 8-bit data if nothing else is specified
-    //   for (i = 0; i < 256; i++)
-    //   {
-    //     dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_8Bit[i]))/amp, false);
-    //   }
-    // #endif
+    uint16_t i;
+    
+    // Push out the right lookup table, depending on the selected resolution
+    #if DAC_RESOLUTION == 5
+      for (i = 0; i < 32; i++)
+      {
+        dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_5Bit[i]))/amp, false);
+      }
+    #elif DAC_RESOLUTION == 6
+      for (i = 0; i < 64; i++)
+      {
+        dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_6Bit[i]))/amp, false);
+      }
+    #elif DAC_RESOLUTION == 7
+      for (i = 0; i < 128; i++)
+      {
+        dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_7Bit[i]))/amp, false);
+      }
+    #elif DAC_RESOLUTION == 9
+      for (i = 0; i < 512; i++)
+      {
+        dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_9Bit[i]))/amp, false);
+      }
+    #else    // Use 8-bit data if nothing else is specified
+      for (i = 0; i < 256; i++)
+      {
+        dac.setVoltage(pgm_read_word(&(DACLookup_FullSine_8Bit[i]))/amp, false);
+      }
+    #endif
 }

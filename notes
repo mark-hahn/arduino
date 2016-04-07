@@ -1,22 +1,31 @@
-cpu
----
-  0     serial rx
-  1     serial tx
-  2     lcd-E  
-  3p    wifi irq
-  4     sdram sel
-  5p    wifi vbat_en
-  6p    wifi sel    (io:10)
-  7     lcd-data(7) + led
-  8     lcd-reg
-  9p    rgt wheel
-  10    lft wheel   (io:6)
-  11-13 wifi spi
-  a0-a2 lcd-data(4-6)
-  a3    V-battery
-  a4-a5 twi i2c (compass, audio, wheel sensors)
 
-audio cannot be used with wifi
+note: mega on back, uno on front
+      both have usb facing away from center
+
+mega wifi shield
+----------------
+twi magnometer    (scl, sda, near aref)     
+                  (opposite spkr, near wheels)
+tim wheel servos  (oc4 6,7)
+                  (16-bit timers tc1,tc3,tc4,tc5)
+spi wifi          (3,5, ICSP)
+                  cannot use (10,11,12,13)
+pwm display rgb   (4,8,9)
+adc battery level (a0)
+dio display       (a1,a2,a3,a4,a5,2)
+
+mega
+----
+dio wheel sensors (pcints a8,a9)
+dio uno send      (47,49, vin, 2 gnds, reset)
+                  cannot use (50,51,52,53)
+
+uno proto shield
+----------------
+dio mega recv     (2,3, vin, 2 gnds, reset)
+spi sd card bkout (spi 10,11,12,13)
+twi audio adc     (twi a4,a5)
+
 
 audio from SD Card:
   arduino max burst spi rate 600Kbyte/sec => 1.6 us per interrupt/loop
@@ -36,13 +45,24 @@ audio d/a:
   intreq per byte, 400Khz I2C => 20us per interrupt/loop
   interrupt overhead ~ 100 cycles => 6us (CAN USE INTERRUPTS)
   
+  battery
+  -------
+  800k twbr 2 => 112 usecs per sample  8.9Khz  4.5Khz audio  <<<<<<<<<<<<
+  1.25 usecs/clk, 37.5 usecs xfr, 33.5 usecs overhead, 11us/byte
+  
+  usb
+  ___
+  800k twbr 2 => 120 usecs per sample  8Khz  4Khz audio  <<<<<<<<<<<<
+  5-bit,  32 sample period ->  3840 usecs, 260Hz
+  6-bit,  64 sample period ->  7680 usecs, 130Hz
+  7-bit, 128 sample period                  65Hz
+  8-bit, 256 sample period ->               32Hz
+  9-bit, 512 sample period ->               16Hz
+  
   measured: (twsr:0)
     100K     -- => 444 usecs per sample  2.3Khz
     400k     12 => 160 usecs per sample  6.3Khz  3.2Khz audio
     
-    800k      2 => 112 usecs per sample  8.9Khz  4.5Khz audio  <<<<<<<<<<<<
-    1.25 usecs/clk, 78.5 usecs xfr, 33.5 usecs overhead, 11us/byte
-                    
 bat   1m res  0 =>  48 usecs per sample 20.8Khz, 10.4Khz audio
                     30 usecs xfer, 18 usecs overhead,  6 usecs/byte
                     
@@ -62,3 +82,20 @@ SD Card:
    64 or 128 byte read => 5884 -> 6844 usecs
 
   
+ uno (old robot)
+ ---
+   0     serial rx
+   1     serial tx
+   2     lcd-E  
+   3p    wifi irq
+   4     sdram sel
+   5p    wifi vbat_en
+   6p    wifi sel    (io:10)
+   7     lcd-data(7) + led
+   8     lcd-reg
+   9p    rgt wheel
+   10    lft wheel   (io:6)
+   11-13 wifi spi
+   a0-a2 lcd-data(4-6)
+   a3    V-battery
+   a4-a5 twi i2c (compass, audio, wheel sensors)
