@@ -1,18 +1,47 @@
 
+compass
+-------
+no spkr
+  pointing at fan:  X:   18.82  Y: 11.36  Z: 14.59  uT
+  pointing at lamp: X:  -31.18  Y:  5.36  Z: 16.94  uT
+  north:
+  east:
+
+w spkr
+  pointing at fan:  X: -212.17  Y:  0.00  Z: -620.98  uT
+  pointing at lamp: X: -114.35  Y:  1.74  Z:   53.17  uT
+  north:            X: -120.43  Y: 1.74  Z: 40.00  uT
+  east:             X: -130.43  Y: 0.87  Z: 33.66  uT
+  
+w spkr - hanging off end
+  north:            X: -58.45  Y:  5.55  Z: 19.80  uT
+  east:             X: -32.36  Y: 26.27  Z: 20.71  uT
+  
+w spkr on wires
+  north:            X: -29.82  Y: -1.00  Z: -4.69  uT
+  east:             X: -31.09  Y: 23.55  Z: 20.71  uT  
+
+  Sensor:       LSM303
+  Driver Ver:   1
+  Unique ID:    12345
+  Max Value:    0.00 uT
+  Min Value:    0.00 uT
+  Resolution:   0.00 uT
+
 note: mega on back, uno on front
       both have usb facing away from center
 
 mega wifi shield
 ----------------
+spi wifi          (3,5, ICSP)
+       cannot use (10,11,12,13)
 twi magnometer    (scl, sda, near aref)     
                   (opposite spkr, near wheels)
 tim wheel servos  (oc4 6,7)
                   (16-bit timers tc1,tc3,tc4,tc5)
-spi wifi          (3,5, ICSP)
-                  cannot use (10,11,12,13)
-pwm display rgb   (4,8,9)
 adc battery level (a0)
 dio display       (a1,a2,a3,a4,a5,2)
+pwm display rgb   (4,8,9)
 
 mega
 ----

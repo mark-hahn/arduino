@@ -1,0 +1,12 @@
+#   -*-  grammar-ext: sh  -*-
+cat u
+
+export USER_LIB_PATH=/root/dev/arduino/libraries
+export ARDUINO_DIR=/root/dev/arduino/arduino-1.6.8
+export ARDMK_DIR=/root/dev/arduino/Arduino-Makefile
+export ARDUINO_QUIET=true
+
+export ARDUINO_PORT=/dev/ttyACM0
+export ARDUINO_LIBS="Adafruit_Sensor Wire SPI Wire Adafruit_CC3000 Adafruit_LSM303_U"
+
+make upload

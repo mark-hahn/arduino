@@ -1,0 +1,15 @@
+#   -*-  grammar-ext: sh  -*-
+cat um1
+
+export BOARD_TAG=mega
+export BOARD_SUB=atmega2560
+
+export USER_LIB_PATH=/root/dev/arduino/libraries
+export ARDUINO_DIR=/root/dev/arduino/arduino-1.6.8
+export ARDMK_DIR=/root/dev/arduino/Arduino-Makefile
+export ARDUINO_QUIET=true
+
+export ARDUINO_LIBS="Adafruit_CC3000 SPI"
+export ARDUINO_PORT=/dev/ttyACM1
+
+make upload

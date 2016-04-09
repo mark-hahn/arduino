@@ -1,7 +1,8 @@
 #   -*-  grammar-ext: sh  -*-
-
 cat u
+
 export ARDUINO_PORT=/dev/ttyACM0
 export ARDUINO_LIBS="Adafruit_Sensor Wire Adafruit_LSM303_U"
+export ARDUINO_QUIET=true
 
 make upload
