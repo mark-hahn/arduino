@@ -1,0 +1,45 @@
+
+audio d/a:
+  30 bits I2C per sample
+  100Khz I2C =>  3333 samples/sec,   1.6 Khz audio
+  
+  400Khz I2C => 13333 samples/sec,   6.6 Khz audio
+                     156 usecs per sample 6.48Khz, 3.25Khz audio
+                      75 usecs xfer, 76 usecs overhead,  25 usecs/byte  
+                      
+  intreq per byte, 400Khz I2C => 20us per interrupt/loop
+  interrupt overhead ~ 100 cycles => 6us (CAN USE INTERRUPTS)
+  
+  battery
+  -------
+  800k twbr 2 => 112 usecs per sample  8.9Khz  4.5Khz audio  <<<<<<<<<<<<
+  1.25 usecs/clk, 37.5 usecs xfr, 33.5 usecs overhead, 11us/byte
+  
+  usb
+  ___
+  800k twbr 2 => 120 usecs per sample  8Khz  4Khz audio  <<<<<<<<<<<<
+  5-bit,  32 sample period ->  3840 usecs, 260Hz
+  6-bit,  64 sample period ->  7680 usecs, 130Hz
+  7-bit, 128 sample period                  65Hz
+  8-bit, 256 sample period ->               32Hz
+  9-bit, 512 sample period ->               16Hz
+  
+  measured: (twsr:0)
+    100K     -- => 444 usecs per sample  2.3Khz
+    400k     12 => 160 usecs per sample  6.3Khz  3.2Khz audio
+    
+bat   1m res  0 =>  48 usecs per sample 20.8Khz, 10.4Khz audio
+                    30 usecs xfer, 18 usecs overhead,  6 usecs/byte
+                    
+usb   1m res  0 =>  52 usecs per sample 19.2Khz,  9.6Khz audio
+                    30 usecs xfer, 22 usecs overhead,  7 usecs/byte
+                    
+usb 889k res  1 => 112 usecs per sample  8.9Khz,  4.5Khz audio      ?
+                    34 usecs xfer, 78 usecs overhead, 10 usecs/byte ?
+                                                            
+             slow:  64 usecs per sample 15.6Khz,  7.8Khz audio
+                    30 usecs xfer, 34 usecs overhead, 11 usecs/byte
+                    
+             slow: 100 usecs per sample 10.0Khz,  5.0Khz audio
+                    30 usecs xfer, 70 usecs overhead, 23 usecs/byte
+

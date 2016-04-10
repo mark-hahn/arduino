@@ -1,0 +1,13 @@
+TWI - I2C
+---------
+  TWBR 0-255              Two-Wire Bit Rate
+  TWPS 0-3 => 1,4,16,64x  Two-Wire clock PreSelect
+  rate = 16Mhz / (16 + 2*TWBR * pre-select)
+    
+  TWPS = 1x
+  TWBR
+    0    1 Mhz
+    2  800 Khz
+   12  400 Khz
+   72  100 Khz
+
