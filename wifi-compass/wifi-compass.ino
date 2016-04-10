@@ -122,28 +122,49 @@ void loop(void) {
   heading = 360.0 * (-atan2(event.magnetic.y, event.magnetic.z) / (2*M_PI));
   while (heading  <   0.0) heading += 360.0;
   while (heading >= 360.0) heading -= 360.0;
+  Serial.println(heading);
 
 //////////////////// WIFI LOOP ////////////////////////
 
-  // static char headingStr[6];
-  // headingStr[3] = '\r';
-  // headingStr[4] = 0;
-  // headingStr[5] = 0;
-  // static bool connected = 0;
-  // static int clientIdx = 0;
+  static char headingStr[6];
+  headingStr[3] = '\r';
+  headingStr[4] = 0;
+  headingStr[5] = 0;
   bool newClient = false;
-  int clientIdx;
+  static int clientIdx = -1;
   
-  if(server.availableIndex(&newClient) > -1) {
-    for (clientIdx=0; clientIdx<3; clientIdx++) {
-      Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
-      Serial.print("idx: "); Serial.print(clientIdx); 
-      Serial.print(", connected: "); Serial.println(client.connected()); 
-      if (client.connected())
-        client.fastrprintln("hello client");
-      // Serial.print(": "); Server.println(); 
+  if (clientIdx == -1) clientIdx = server.availableIndex(&newClient);
+  if (clientIdx != -1) {
+    Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
+    if (newClient) client.fastrprintln("hello client");
+    if (client && client.connected()) {
+      uint16_t int_heading = round(heading);
+      int i;
+      for (i = 0; i < 3; i++) {
+        headingStr[2-i] = '0' + int_heading % 10;
+        int_heading /= 10;
+      }
+      client.write(headingStr, 6);
+      Serial.println(headingStr);
+    }
+    while (client && client.available()) {
+      if (client.read() == 'q') {
+        client.close();
+        clientIdx = -1;
+        break;
+      }
     }
   }
+    
+  
+  // for (clientIdx=0; clientIdx<3; clientIdx++) {
+  //   
+  //   Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
+  //   if (client && client.connected()) {
+  //     Serial.print("idx: "); Serial.println(clientIdx);
+  //     if (newClient) client.fastrprintln("hello client");
+  //   } 
+  // }
   // if (!clientIdx) clientIdx = server.availableIndex(&newClient);
   // Serial.println(server.availableIndex(&newClient));
   
