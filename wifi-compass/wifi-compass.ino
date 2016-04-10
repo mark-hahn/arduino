@@ -7,8 +7,12 @@
 #include "utility/debug.h"
 #include "utility/socket.h"
 
-//////////////////// WIFI DEFINE ///////////////////
+///////////////////// VBATT DEF ////////////////////
 
+#define vBattPin     A0
+
+//////////////////// WIFI DEFINE ///////////////////
+#define LEDPIN         A7
 #define PORT           23
 #define CC3000_CS      10
 #define CC3000_IRQ      3
@@ -68,6 +72,8 @@ void setup(void)
   Serial.println(F("Starting wifi-compass ...\n")); 
   Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC);
   
+  pinMode(LEDPIN, OUTPUT);
+  digitalWrite(LEDPIN, HIGH);
   
   //////////////////// WIFI SETUP ///////////////////
 
@@ -92,6 +98,7 @@ void setup(void)
   }
   server.begin();
   Serial.println("Listening for clients ...\n");
+  digitalWrite(LEDPIN, LOW);
   
 //////////////////// COMPASS SETUP ///////////////////
 
@@ -101,8 +108,7 @@ void setup(void)
       Serial.println("no magnometer detected");
       while(1);
     }
-    TWSR = 0;
-    TWBR = 2;  // 12 => 736, 2 => 570
+    TWBR = 12;  // 400Khz
     displaySensorDetails();
 }
 
@@ -143,6 +149,8 @@ float data[numData];
 
 void loop(void) {
   double heading;
+  
+  float vBatt = 5 * (2 * analogRead(vBattPin)/1023.0);
 
 //////////////////// COMPASS LOOP ////////////////////////
 
@@ -176,7 +184,8 @@ void loop(void) {
       prtFloat_3_2(client, max, false);
       if (totalSamples >= numData)
         prtFloat_3_2(client, avg-min, false);
-      prtFloat_3_2(client, max-min, true);
+      prtFloat_3_2(client, max-min, false);
+      prtFloat_3_2(client, vBatt, true);
     }
     while (client && client.available()) {
       int ch = client.read();

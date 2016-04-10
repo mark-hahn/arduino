@@ -10,6 +10,7 @@ tim wheel servos  (oc4 6,7)
 adc battery level (a0)
 dio display       (a1,a2,a3,a4,a5,2)
 pwm display rgb   (4,8,9)
+leds              
 
 mega
 ----

@@ -11,3 +11,8 @@ TWI - I2C
    12  400 Khz
    72  100 Khz
 
+
+pull-up
+-------
+min res (VCC-0.4V) / 3mA => >= 1533 Ohms
+max res 300ns/Capacitance

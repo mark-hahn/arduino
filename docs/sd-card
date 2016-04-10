@@ -2,8 +2,9 @@ audio from SD Card:
   arduino max burst spi rate 600Kbyte/sec => 1.6 us per interrupt/loop
   interrupt overhead ~ 100 cycles => 6us (CANNOT USE INTERRUPTS)
   card read rate is 144 byte block from sd card in 1250 usecs
-  29.3K samples/sec in audio app
-  14.6 Khz audio
+  reported: 
+    29.3K samples/sec in audio app
+    14.6 Khz audio
 
 SD Card:
 64 or 128 byte read => 5884 -> 6844 usecs
