@@ -82,17 +82,14 @@ void setup(void)
     Serial.println("Failed!");
     while(1);
   }
-  Serial.println("Connected!");
-  
-  Serial.println("Request DHCP");
+  Serial.println("Connected to AP, requesting DHCP ...");
   while (!cc3000.checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
-  }  
-  /* Display the IP address DNS, Gateway, etc. */  
+  }
+  Serial.println("Have DHCP, printing details ...\n");
   while (! displayConnectionDetails()) {
     delay(1000);
   }
-  // Start listening for connections
   server.begin();
   Serial.println("Listening for clients ...\n");
   
@@ -111,6 +108,39 @@ void setup(void)
 
 //////////////////// LOOP ////////////////////////
 
+void prtFloat_3_2(Adafruit_CC3000_ClientRef client, float f, bool eol) {
+  static char headingStr[9];
+  headingStr[3] = '.';
+  headingStr[6] = '\r';
+  headingStr[7] = '\n';
+  headingStr[8] = 0;
+  if (!eol) {
+    headingStr[6] = ' ';
+    headingStr[7] = ' ';
+  }
+  uint16_t int_heading = round(100 * f);
+  int i;
+  for (i = 5; i >= 4; i--) {
+    headingStr[i] = '0' + int_heading % 10;
+    int_heading /= 10;
+  }
+  for (i = 2; i >= 0; i--) {
+    headingStr[i] = '0' + int_heading % 10;
+    int_heading /= 10;
+  }
+  for (i=0; i<2; i++) {
+    if (headingStr[i] == '0')  headingStr[i] = ' '; else break;
+  }
+  client.write(headingStr, 8);
+}
+
+#define numData 30
+float min = 9e9;
+float max = -9e9;
+int   dataIdx = 0;
+int   totalSamples = 0;
+float data[numData];
+
 void loop(void) {
   double heading;
 
@@ -118,18 +148,16 @@ void loop(void) {
 
   sensors_event_t event; 
   mag.getEvent(&event);
-  // θ = arctan ( y / x )
-  heading = 360.0 * (-atan2(event.magnetic.y, event.magnetic.z) / (2*M_PI));
-  while (heading  <   0.0) heading += 360.0;
-  while (heading >= 360.0) heading -= 360.0;
+  heading = 180 * (1 + -atan2(event.magnetic.y, event.magnetic.z) / M_PI);
   Serial.println(heading);
+  data[dataIdx++] = heading;
+  dataIdx %= numData;
+  totalSamples++;
+  if (heading < min) min = heading;
+  if (heading > max) max = heading;
 
 //////////////////// WIFI LOOP ////////////////////////
 
-  static char headingStr[6];
-  headingStr[3] = '\r';
-  headingStr[4] = 0;
-  headingStr[5] = 0;
   bool newClient = false;
   static int clientIdx = -1;
   
@@ -137,59 +165,34 @@ void loop(void) {
   if (clientIdx != -1) {
     Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
     if (newClient) client.fastrprintln("hello client");
+    int i;
+    float avg = 0.0;
+    for (i=0; i<numData; i++) avg += data[i];
+    avg /= numData;
     if (client && client.connected()) {
-      uint16_t int_heading = round(heading);
-      int i;
-      for (i = 0; i < 3; i++) {
-        headingStr[2-i] = '0' + int_heading % 10;
-        int_heading /= 10;
-      }
-      client.write(headingStr, 6);
-      Serial.println(headingStr);
+      prtFloat_3_2(client, min, false);
+      if (totalSamples >= numData)
+        prtFloat_3_2(client, avg, false);
+      prtFloat_3_2(client, max, false);
+      if (totalSamples >= numData)
+        prtFloat_3_2(client, avg-min, false);
+      prtFloat_3_2(client, max-min, true);
     }
     while (client && client.available()) {
-      if (client.read() == 'q') {
+      int ch = client.read();
+      if (ch == 'q') {
         client.close();
         clientIdx = -1;
         break;
       }
+      if (ch == 'r') {
+        totalSamples = 0;
+        min = 9e9;
+        max = -9e9;
+        client.write('\n');
+      }
     }
   }
-    
-  
-  // for (clientIdx=0; clientIdx<3; clientIdx++) {
-  //   
-  //   Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
-  //   if (client && client.connected()) {
-  //     Serial.print("idx: "); Serial.println(clientIdx);
-  //     if (newClient) client.fastrprintln("hello client");
-  //   } 
-  // }
-  // if (!clientIdx) clientIdx = server.availableIndex(&newClient);
-  // Serial.println(server.availableIndex(&newClient));
-  
-  // if (clientIdx) {
-  //    client = server.available();
-  //   if (newClient) {
-  //     Serial.print("client connected: "); Serial.println(clientIdx);
-  //     connected = true;
-  //   }
-  //   if (client.available() && client.read() == 'q') {
-  //     client.close();
-  //   } else {
-  //     uint16_t int_heading = round(heading);
-  //     for (i = 0; i < 3; i++) {
-  //       headingStr[3-i] = '0' + int_heading % 10;
-  //       int_heading /= 10;
-  //     }
-  //     client.write(headingStr, 6);
-  //     Serial.println(headingStr);
-  //   }
-  // } else {
-  //   if (!client.connected) {
-  //     Serial.println("client disconnected");
-  //     connected = false;
-  //   }
-  // }
+
   delay(500);
 }
