@@ -9,7 +9,7 @@
 
 ///////////////////// VBATT DEF ////////////////////
 
-#define vBattPin     A0
+// #define vBattPin     A0
 
 //////////////////// WIFI DEFINE ///////////////////
 #define LEDPIN         A7
@@ -65,6 +65,11 @@ void displaySensorDetails(void)
 }
 
 //////////////////// SETUP ////////////////////////
+void blink() {
+  digitalWrite(LEDPIN, LOW);
+  delay(100);
+  digitalWrite(LEDPIN, HIGH);
+}
 
 void setup(void)
 {
@@ -83,15 +88,18 @@ void setup(void)
     Serial.println("Couldn't begin(! Check your wiring?");
     while(1);
   }
+  blink();
   Serial.println("Connecting to access point...");
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
     Serial.println("Failed!");
     while(1);
   }
+  blink();
   Serial.println("Connected to AP, requesting DHCP ...");
   while (!cc3000.checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
   }
+  blink();
   Serial.println("Have DHCP, printing details ...\n");
   while (! displayConnectionDetails()) {
     delay(1000);
@@ -140,9 +148,9 @@ void prtFloat_3_2(Adafruit_CC3000_ClientRef client, float f, bool eol) {
   client.write(headingStr, 8);
 }
 
-#define numData 30
-float min = 9e9;
-float max = -9e9;
+#define numData 10
+// float min = 9e9;
+// float max = -9e9;
 int   dataIdx = 0;
 int   totalSamples = 0;
 float data[numData];
@@ -150,19 +158,19 @@ float data[numData];
 void loop(void) {
   double heading;
   
-  float vBatt = 5 * (2 * analogRead(vBattPin)/1023.0);
+  // float vBatt = 5 * (2 * analogRead(vBattPin)/1023.0);
 
 //////////////////// COMPASS LOOP ////////////////////////
 
   sensors_event_t event; 
   mag.getEvent(&event);
   heading = 180 * (1 + -atan2(event.magnetic.y, event.magnetic.z) / M_PI);
-  Serial.println(heading);
+  // Serial.println(heading);
   data[dataIdx++] = heading;
   dataIdx %= numData;
   totalSamples++;
-  if (heading < min) min = heading;
-  if (heading > max) max = heading;
+  // if (heading < min) min = heading;
+  // if (heading > max) max = heading;
 
 //////////////////// WIFI LOOP ////////////////////////
 
@@ -172,32 +180,41 @@ void loop(void) {
   if (clientIdx == -1) clientIdx = server.availableIndex(&newClient);
   if (clientIdx != -1) {
     Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
-    if (newClient) client.fastrprintln("hello client");
+    if (newClient) {
+      // client.fastrprintln("hello client");
+      Serial.println("hello client");
+    }
     int i;
     float avg = 0.0;
     for (i=0; i<numData; i++) avg += data[i];
     avg /= numData;
     if (client && client.connected()) {
-      prtFloat_3_2(client, min, false);
-      if (totalSamples >= numData)
-        prtFloat_3_2(client, avg, false);
-      prtFloat_3_2(client, max, false);
-      if (totalSamples >= numData)
-        prtFloat_3_2(client, avg-min, false);
-      prtFloat_3_2(client, max-min, false);
-      prtFloat_3_2(client, vBatt, true);
+      blink();
+      // prtFloat_3_2(client, min, false);
+      if (totalSamples >= numData) {
+        prtFloat_3_2(client, avg, true);
+        blink();
+        Serial.println(avg);
+      }
+      // prtFloat_3_2(client, max, false);
+      // if (totalSamples >= numData)
+      //   prtFloat_3_2(client, avg-min, true);
+      // prtFloat_3_2(client, max-min, false);
+      // prtFloat_3_2(client, vBatt, true);
     }
     while (client && client.available()) {
       int ch = client.read();
       if (ch == 'q') {
+        Serial.println("quiting");
         client.close();
         clientIdx = -1;
         break;
       }
       if (ch == 'r') {
+        Serial.println("resetting");
         totalSamples = 0;
-        min = 9e9;
-        max = -9e9;
+        // min = 9e9;
+        // max = -9e9;
         client.write('\n');
       }
     }

@@ -3,3 +3,4 @@ makefile
 arduino-*
 Arduino-*
 libraries
+node_modules
