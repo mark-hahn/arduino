@@ -1,9 +1,9 @@
-#include <SPI.h>
 #include <math.h>
+#include <SPI.h>
+#include <Adafruit_CC3000.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_CC3000.h>
-#include <Adafruit_LSM303_U.h>
+#include <Adafruit_LSM303.h>
 #include "utility/debug.h"
 #include "utility/socket.h"
 
@@ -46,29 +46,37 @@ bool displayConnectionDetails(void)
 
 //////////////////// COMPASS DEFINE ///////////////////
 
-Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
+Adafruit_LSM303 mag;
 
 void displaySensorDetails(void)
 {
-  sensor_t sensor;
-  mag.getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" uT");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" uT");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" uT");  
-  Serial.println("------------------------------------");
-  Serial.println("");
-  delay(500);
+  // sensor_t sensor;
+  // mag.getSensor(&sensor);
+  // Serial.println("------------------------------------");
+  // Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  // Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  // Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  // Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" uT");
+  // Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" uT");
+  // Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" uT");  
+  // Serial.println("------------------------------------");
+  // Serial.println("");
+  // delay(500);
 }
 
 //////////////////// SETUP ////////////////////////
+
 void blink() {
   digitalWrite(LEDPIN, LOW);
   delay(100);
   digitalWrite(LEDPIN, HIGH);
+}
+
+void fatal() {
+  while(true) {
+    blink();
+    delay(100);
+  }
 }
 
 void setup(void)
@@ -80,7 +88,7 @@ void setup(void)
   pinMode(LEDPIN, OUTPUT);
   digitalWrite(LEDPIN, HIGH);
   
-  //////////////////// WIFI SETUP ///////////////////
+//////////////////// WIFI SETUP ///////////////////
 
   Serial.println("\nInitializing wifi ...");
 
@@ -110,65 +118,73 @@ void setup(void)
   
 //////////////////// COMPASS SETUP ///////////////////
 
-    mag.setMagRate(LSM303_MAGRATE_220);
-    mag.enableAutoRange(true);
-    if(!mag.begin()) {
-      Serial.println("no magnometer detected");
-      while(1);
-    }
-    TWBR = 12;  // 400Khz
-    displaySensorDetails();
+// (x,y: 1100/gauss, z: 980/gauss)
+  mag.setMagGain(mag.LSM303_MAGGAIN_1_3); 
+  
+  if(!mag.begin()) {
+    Serial.println("no magnometer detected");
+    while(1);
+  }
+  TWBR = 12;  // 400Khz
+  displaySensorDetails();
 }
 
 //////////////////// LOOP ////////////////////////
 
-void prtFloat_3_2(Adafruit_CC3000_ClientRef client, float f, bool eol) {
-  static char headingStr[9];
-  headingStr[3] = '.';
-  headingStr[6] = '\r';
-  headingStr[7] = '\n';
-  headingStr[8] = 0;
+void prt3(Adafruit_CC3000_ClientRef client, float f, bool eol) {
+  static char headingStr[7];
+  headingStr[0] = ' ';
+  if (f < 0) {
+    f = -f;
+    headingStr[0]  = '-';
+  }
+  headingStr[4] = '\r';
+  headingStr[5] = '\n';
+  headingStr[6] = 0;
   if (!eol) {
-    headingStr[6] = ' ';
-    headingStr[7] = ' ';
+    headingStr[4] = ' ';
+    headingStr[5] = ' ';
   }
-  uint16_t int_heading = round(100 * f);
   int i;
-  for (i = 5; i >= 4; i--) {
-    headingStr[i] = '0' + int_heading % 10;
-    int_heading /= 10;
+  uint16_t int_f = round(f);
+  for (i = 3; i >= 1; i--) {
+    headingStr[i] = '0' + int_f % 10;
+    int_f /= 10;
   }
-  for (i = 2; i >= 0; i--) {
-    headingStr[i] = '0' + int_heading % 10;
-    int_heading /= 10;
-  }
-  for (i=0; i<2; i++) {
-    if (headingStr[i] == '0')  headingStr[i] = ' '; else break;
-  }
-  client.write(headingStr, 8);
+  if (headingStr[0] == ' ')
+    for (i=1; i<3; i++) {
+      if (headingStr[i] == '0')  headingStr[i] = ' '; else break;
+    }
+  client.write(headingStr, 6);
 }
 
-#define numData 10
+// #define numData 10
 // float min = 9e9;
 // float max = -9e9;
-int   dataIdx = 0;
-int   totalSamples = 0;
-float data[numData];
+// int   dataIdx = 0;
+// int   totalSamples = 0;
+// float data[numData];
 
 void loop(void) {
-  double heading;
+  // double heading;
   
-  // float vBatt = 5 * (2 * analogRead(vBattPin)/1023.0);
-
 //////////////////// COMPASS LOOP ////////////////////////
+  mag.read();
+  mag.magData.z = round(mag.magData.z * (1100.0/980.0));
+  
+  Serial.print(" "); Serial.print(mag.magData.x);
+  Serial.print(" "); Serial.print(mag.magData.y);
+  Serial.print(" "); Serial.println(mag.magData.z);
+  
+  // Serial.print("Accel X: "); Serial.print((int)mag.accelData.x); Serial.print(" ");
+  // Serial.print("Y: "); Serial.print((int)mag.accelData.y);       Serial.print(" ");
+  // Serial.print("Z: "); Serial.println((int)mag.accelData.z);     Serial.print(" ");
 
-  sensors_event_t event; 
-  mag.getEvent(&event);
-  heading = 180 * (1 + -atan2(event.magnetic.y, event.magnetic.z) / M_PI);
-  // Serial.println(heading);
-  data[dataIdx++] = heading;
-  dataIdx %= numData;
-  totalSamples++;
+  // heading = 180 * (1 + -atan2(event.magnetic.y, event.magnetic.z) / M_PI);
+  // // Serial.println(heading);
+  // data[dataIdx++] = heading;
+  // dataIdx %= numData;
+  // totalSamples++;
   // if (heading < min) min = heading;
   // if (heading > max) max = heading;
 
@@ -177,30 +193,39 @@ void loop(void) {
   bool newClient = false;
   static int clientIdx = -1;
   
-  if (clientIdx == -1) clientIdx = server.availableIndex(&newClient);
+  if (clientIdx == -1) 
+    clientIdx = server.availableIndex(&newClient);
+    
   if (clientIdx != -1) {
-    Adafruit_CC3000_ClientRef client = server.getClientRef(clientIdx);
+    Adafruit_CC3000_ClientRef 
+      client = server.getClientRef(clientIdx);
     if (newClient) {
       // client.fastrprintln("hello client");
       Serial.println("hello client");
     }
-    int i;
-    float avg = 0.0;
-    for (i=0; i<numData; i++) avg += data[i];
-    avg /= numData;
+    // int i;
+    // float avg = 0.0;
+    // for (i=0; i<numData; i++) avg += data[i];
+    // avg /= numData;
     if (client && client.connected()) {
+      float vBatt = 5 * (2 * analogRead(vBattPin)/1023.0);
+      prt3(client, vBatt, true);  
+
       blink();
-      // prtFloat_3_2(client, min, false);
-      if (totalSamples >= numData) {
-        prtFloat_3_2(client, avg, true);
-        blink();
-        Serial.println(avg);
-      }
-      // prtFloat_3_2(client, max, false);
+      prt3(client, mag.magData.x, false);  
+      prt3(client, mag.magData.y, false);  
+      prt3(client, mag.magData.z, true);  
+      // prt3(client, min, false);
+      // if (totalSamples >= numData) {
+      //   prt3(client, avg, true);
+      //   blink();
+      //   Serial.println(avg);
+      // }
+      // prt3(client, max, false);
       // if (totalSamples >= numData)
-      //   prtFloat_3_2(client, avg-min, true);
-      // prtFloat_3_2(client, max-min, false);
-      // prtFloat_3_2(client, vBatt, true);
+      //   prt3(client, avg-min, true);
+      // prt3(client, max-min, false);
+      // prt3(client, vBatt, true);
     }
     while (client && client.available()) {
       int ch = client.read();
@@ -210,13 +235,13 @@ void loop(void) {
         clientIdx = -1;
         break;
       }
-      if (ch == 'r') {
-        Serial.println("resetting");
-        totalSamples = 0;
-        // min = 9e9;
-        // max = -9e9;
-        client.write('\n');
-      }
+      // if (ch == 'r') {
+      //   Serial.println("resetting");
+      //   totalSamples = 0;
+      //   // min = 9e9;
+      //   // max = -9e9;
+      //   client.write('\n');
+      // }
     }
   }
 

@@ -9,7 +9,7 @@ export ARDUINO_DIR=/root/dev/arduino/arduino-1.6.8
 export ARDMK_DIR=/root/dev/arduino/Arduino-Makefile
 export ARDUINO_QUIET=true
 
-export ARDUINO_LIBS="Adafruit_Sensor Wire Adafruit_LSM303_U"
+export ARDUINO_LIBS="Adafruit_Sensor Wire Adafruit_LSM303"
 export ARDUINO_PORT=/dev/ttyACM0
 
 make upload
