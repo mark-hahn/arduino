@@ -8,8 +8,8 @@ Notes
 
 Earths' mag field in long beach
 -------------------------------
-east-west    5 ut ( 50 reg val)
-north-south 24 ut (240 reg val)
+east-west    5 ut
+north-south 24 ut
 
 
 raw lsm303 readings (lines from net conn)

@@ -1,9 +1,7 @@
 #   -*-  grammar-ext: sh  -*-
 cat m
 
-export USER_LIB_PATH=/root/dev/arduino/libraries
 export ARDUINO_PORT=/dev/ttyACM0
-export ARDUINO_LIBS="Adafruit_MCP4725 Wire"
 export ARDUINO_QUIET=true
 
 make monitor

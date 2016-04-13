@@ -1,28 +1,33 @@
 
 mega wifi shield
 ----------------
+tim wheel servos  (oc4 6,7)
+                  (total 16-bit timers tc1,tc3,tc4,tc5)
+dio uno send      (a1,a2, vin, gnd, reset)
+leds              (a4,a5)
+
+done ...
 spi wifi          (3,5, ICSP)
+spi sd card       (4)
        cannot use (10,11,12,13)
 twi magnometer    (scl, sda, near aref)     
-                  (opposite spkr, near wheels)
-tim wheel servos  (oc4 6,7)
-                  (16-bit timers tc1,tc3,tc4,tc5)
 adc battery level (a0)
-dio display       (a1,a2,a3,a4,a5,2)
-pwm display rgb   (4,8,9)
-leds              
+
 
 mega
 ----
+pwm display rgb   (44,45,46)
+dio display       (42,40,38,36,34,32)
 dio wheel sensors (pcints a8,a9)
-dio uno send      (47,49, vin, 2 gnds, reset)
-                  cannot use (50,51,52,53)
 
-uno proto shield
-----------------
-dio mega recv     (2,3, vin, 2 gnds, reset)
+
+uno shield
+----------
 spi sd card bkout (spi 10,11,12,13)
-twi audio adc     (twi a4,a5)
+dio mega recv     (a1,a2, vin, gnd, reset)
+
+done...
+twi audio dac     (twi a4,a5)
 
 
 ================================================================
