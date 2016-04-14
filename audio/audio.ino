@@ -12,20 +12,115 @@ SdVolume volume;
 SdFile root;
 
 const int chipSelect = 4;
+#define BUFLEN 64
     
-void fatal(const String& msg) {
-  Serial.print("Fatal error: "); Serial.println(msg);
+void fatal(String msg) {
+  Serial.print(String("Fatal error: " + msg));
   while(1);
+}
+
+void dumpHex(uint8_t* buf, int len) {
+  int cnt = 0;
+  uint8_t* max = buf + len;
+  while(buf < max) {
+    uint8_t* max2 = buf + 16;
+    for(; buf < max2 && cnt < len; buf++, cnt++) {
+      String hd = String(*buf, HEX); 
+      if (hd.length() < 2) hd = "0" + hd;
+      Serial.print(hd); Serial.print(" ");
+      if (cnt % 4 == 3) Serial.print(" ");
+    }
+    Serial.println();
+  }
 }
 
 ////////////////////////// DAC DEF ///////////////////////////
 
 Adafruit_MCP4725 dac;
 
-////// BUFFER ACCESS FUNCTIONS /////
+////////////////////////// SD FILE READ ///////////////////////////
 
-uint8_t buffer[256];
-uint8_t *bufPtr;
+uint8_t buffer[2*BUFLEN];
+uint8_t *bufPtr = buffer;
+#define buffer1 (buffer)
+#define buffer2 (buffer + BUFLEN)
+
+// shared with TWI interrupts
+volatile uint8_t *bufWritePtr = buffer1;
+volatile uint8_t *bufReadPtr  = buffer1;
+
+uint32_t fileLength = 1000000000;
+uint16_t channels;
+uint32_t framesPerSec;
+uint32_t avgBytesPerSec;
+uint16_t frameSize;
+uint16_t bitsPerSample;
+uint32_t numSamples;
+
+File myFile;
+uint32_t totalBytesRead = 0;
+bool fileReadActive = false;
+
+void readFile() {
+  Serial.println("readFile");
+  
+  // if (!fileReadActive) return;
+  
+  // noInterrupts();
+  bool bufEmpty = (bufWritePtr == bufReadPtr);
+  // interrupts();
+  
+  Serial.print("bufEmpty: "); Serial.println(bufEmpty);
+  Serial.print("bufWritePtr: "); Serial.println((uint32_t)bufWritePtr);
+  
+  while (!bufEmpty &&
+         ((bufWritePtr == buffer1 && bufReadPtr  < buffer2) ||
+          (bufWritePtr == buffer2 && bufReadPtr >= buffer2))) {}
+  
+  Serial.print("buffer: "); Serial.println((uint32_t)buffer);
+  Serial.print("buffer1: "); Serial.println((uint32_t)buffer1);
+  Serial.print("buffer2: "); Serial.println((uint32_t)buffer2);
+  
+  uint32_t bytesRead = myFile.read((void*)bufWritePtr, BUFLEN);
+  
+  Serial.print("bytesRead: "); Serial.println(bytesRead);
+  totalBytesRead += bytesRead;
+  Serial.print("totalBytesRead: "); Serial.println(totalBytesRead);
+  
+  dumpHex(buffer, 64);
+  
+  // noInterrupts();
+  bufWritePtr += bytesRead;
+  if (bufWritePtr >= buffer2+BUFLEN) bufWritePtr = buffer1;
+  // interrupts();
+  
+  if (bytesRead < BUFLEN ||
+       (fileLength < 1000000000 && 
+        totalBytesRead >= fileLength)) {
+    fileReadActive = false;
+    Serial.print("done reading file, bytes read: "); 
+    Serial.println(totalBytesRead);
+  }
+}
+
+void openFile(const char* fileName) {
+  Serial.print("opening file: "); Serial.println(fileName);
+  pinMode(4, OUTPUT);
+  if (!SD.begin(4)) fatal("SD initialization failed");
+  
+  myFile = SD.open(fileName, FILE_READ);
+  if (!myFile) fatal("error opening TEST.WAV");
+  fileReadActive = true;
+  
+  // noInterrupts();
+  bufWritePtr = buffer1;
+  bufReadPtr  = buffer1;
+  // interrupts();
+  
+  readFile();
+}
+
+////// BUFFER ACCESS FUNCTIONS /////
 
 bool isEqStr (const char* str, int len) {
   bool eq = true;
@@ -34,7 +129,7 @@ bool isEqStr (const char* str, int len) {
   for (; eq && *ptr && ptr != bufPtr; ptr++, str++) {
     eq = eq && (*ptr == *str);
   }
-  return eq;
+  return eq && ptr == bufPtr;
 }
 uint16_t getUInt16() {
   bufPtr += 2;
@@ -49,49 +144,48 @@ uint32_t getUInt32() {
 }
 
 void setup() {
-
   Serial.begin(115200);
   
-  pinMode(4, OUTPUT);
-  if (!SD.begin(4)) fatal("SD initialization failed");
-  File myFile = SD.open("TEST.WAV");
-  if (!myFile) fatal("error opening TEST.WAV");
-  
-  myFile.read(buffer, 256);
-  bufPtr = buffer;
+  openFile("TEST.WAV");
   
   if (!isEqStr("RIFF", 4)) fatal("not .wav file");
-  uint8_t *eof = (uint8_t *)(getUInt32()+8);
-  if (!isEqStr("WAVE", 4))  fatal("no WAVE");
+  fileLength = getUInt32() + 8;
+  if (!isEqStr("WAVE", 4)) fatal("no WAVE");
 
+  uint8_t *eof = bufPtr + fileLength;
+  
+  // Serial.print("chunkType: "); Serial.println(chunkType);
   // chunk loop
   while (bufPtr < eof) {
-    Serial.print("getting chunk at "); Serial.print((uint32_t)(bufPtr - buffer));
-    Serial.print(" of "); Serial.println((uint32_t)(eof-buffer));
-    char chunkType;
-    if (isEqStr("fmt ", 4)) chunkType = 'f';
-    else {
-      bufPtr -= 4;
-      if (isEqStr("data", 4)) chunkType = 'd';
-      else {
-        bufPtr -= 4;
-        if (isEqStr("fact", 4)) chunkType = 'a';
-        else fatal("chunk type unknown");
-      }
+    String chunkType = String((char *)bufPtr).substring(0,4);
+    bufPtr += 4;
+    uint32_t chunkSize = getUInt32();
+    Serial.print("\nfound chunk type " + chunkType + 
+                 " with size " + chunkSize +
+                 " at " + (uint32_t)(bufPtr - buffer) +
+                 " of " + (uint32_t)(eof-buffer) + "\r\n");    
+    if (chunkType == "fmt ") {
+      if (getUInt16() != 1) fatal("not uncompressed Microsoft format");
+      channels       = getUInt16();
+      framesPerSec   = getUInt32(); 
+      avgBytesPerSec = getUInt32();
+      frameSize      = getUInt16();
+      bitsPerSample  = getUInt16();
+      Serial.print("channels: ");       Serial.println(channels);
+      Serial.print("framesPerSec: ");   Serial.println(framesPerSec);
+      Serial.print("avgBytesPerSec: "); Serial.println(avgBytesPerSec);
+      Serial.print("frameSize: ");      Serial.println(frameSize);
+      Serial.print("bitsPerSample: ");  Serial.println(bitsPerSample);
     }
-    int chunkHdrLen = getUInt32();
-    Serial.print("chunkType: ");   Serial.println(chunkType);
-    Serial.print("chunkHdrLen: "); Serial.println(chunkHdrLen);
-    if (chunkType == 'f') {
-      uint16_t formatTag = getUInt16();   //1 if uncompressed Microsoft PCM audio
-      Serial.print("formatTag: "); Serial.println(formatTag);
-      // ushort  wChannels;       //Number of channels
-      // uint    dwSamplesPerSec; //Frequency of the audio in Hz
-      // uint    dwAvgBytesPerSec;//For estimating RAM allocation
-      // ushort  wBlockAlign;     //Sample frame size in bytes
-      // uint    dwBitsPerSample; //Bits per sample
+    
+    else if (chunkType == "fact") {
+      numSamples = getUInt32(); 
+      Serial.print("numSamples: "); Serial.println(numSamples);
     }
-    while(1);
+    else if (chunkType == "data") {
+      while(1);
+    }
+    else fatal(String("invalid chunk type " + chunkType));
   }
   
   // Serial.println("Playing");
