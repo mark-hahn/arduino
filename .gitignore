@@ -1,6 +1,5 @@
 build-*
 makefile
-arduino-*
-Arduino-*
-libraries
 node_modules
+Arduino-Makefile
+arduino-1.6.8

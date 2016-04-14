@@ -1,0 +1,4 @@
+mv $down/*.zip .
+unzip *.zip
+rm *.zip
+
