@@ -104,10 +104,10 @@ void readFile() {
   }
 }
 
-void openFile(__FlashStringHelper* fileName) {
+void openFile(const char* fileName) {
   Serial.print(F("opening file: ")); Serial.println(fileName);
   Serial.print(F("freeMemory: ")); Serial.println(freeMemory());
-  if (pf_open((const char*)fileName)) fatal(F("fs open"));
+  if (pf_open(fileName)) fatal(F("fs open"));
   fileReadActive = true;
   // noInterrupts();
   bufWritePtr = buffer1;
@@ -148,7 +148,7 @@ void setup() {
 
   if (pf_mount(&fs)) fatal(F("sd & os mount"));
 
-  openFile(F("TEST.WAV"));
+  openFile("TEST.WAV");
   // openFile(F("TEST.TXT"));
   
   if (!isEqStr("RIFF", 4)) fatal(F("not .wav file"));
