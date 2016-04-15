@@ -5,20 +5,21 @@
 #include <Adafruit_MCP4725.h>
 #include <MemoryFree.h>
 
+////////////////////////// MISC DEF ///////////////////////////
+PetitSerial PS;
+#define Serial PS
+FATFS fs;
+
 // Workaround for http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34734
 #ifdef PROGMEM
 #undef PROGMEM
 #define PROGMEM __attribute__((section(".progmem.data")))
 #endif
 
-PetitSerial PS;
-#define Serial PS
-FATFS fs;
-
-////////////////////////// SD CARD DEF ///////////////////////////
-
-#define BUFLEN 512
-
+void dbg(__FlashStringHelper* msg, uint32_t value) {
+  Serial.print(msg); Serial.println(value);
+}
+  
 void fatal(__FlashStringHelper* msg) {
   Serial.print(F("Fatal error: ")); Serial.println(msg);
   while(1);
@@ -39,22 +40,26 @@ void dumpHex(uint8_t* buf, int len) {
   }
 }
 
-// ////////////////////////// DAC DEF ///////////////////////////
 
+// ////////////////////////// DAC DEF ///////////////////////////
 Adafruit_MCP4725 dac;
 
-// ////////////////////////// SD FILE READ ///////////////////////////
-// 
+
+// ////////////////////////// SD FILE READ VARS ///////////////////////////
+#define BUFLEN 512
+
 uint8_t buffer[2*BUFLEN];
-uint8_t *bufPtr = buffer;
 #define buffer1 (buffer)
 #define buffer2 (buffer + BUFLEN)
+
+uint8_t *bufPtr;
+char fileName[] = "TEST.WAV";
 
 // shared with TWI interrupts
 volatile uint8_t *bufWritePtr = buffer1;
 volatile uint8_t *bufReadPtr  = buffer1;
 
-uint32_t fileLength = 1000000000;
+uint32_t fileLength;
 uint16_t channels;
 uint32_t framesPerSec;
 uint32_t avgBytesPerSec;
@@ -62,62 +67,12 @@ uint16_t frameSize;
 uint16_t bitsPerSample;
 uint32_t numSamples;
 
+uint32_t bytesAddedToBuf = 0;
+uint32_t bytesRemovedFromBuf = 0;
 uint32_t totalBytesRead = 0;
-bool fileReadActive = false;
 
-void readFile() {
-  Serial.println(F("readFile"));
-  Serial.print(F("freeMemory: ")); Serial.println(freeMemory());
-  if (!fileReadActive) return;
-  // noInterrupts();
-  bool bufEmpty = (bufWritePtr == bufReadPtr);
-  // interrupts();
-  
-  Serial.print(F("bufEmpty: ")); Serial.println(bufEmpty);
-  Serial.print(F("bufWritePtr: ")); Serial.println((uint32_t)bufWritePtr);
-  
-  while (!bufEmpty &&
-         ((bufWritePtr == buffer1 && bufReadPtr  < buffer2) ||
-          (bufWritePtr == buffer2 && bufReadPtr >= buffer2))) {}
-  
-  uint16_t bytesRead;
-  if (pf_read(buffer, sizeof(buffer), &bytesRead)) fatal(F("file read"));
-  Serial.print(F("bytesRead: ")); Serial.println(bytesRead);
-  // buffer[bytesRead] = 0;
-  // Serial.print((char*)buffer);
-  // dumpHex(buffer, bytesRead);
-  
-  totalBytesRead += bytesRead;
-  Serial.print(F("totalBytesRead: ")); Serial.println(totalBytesRead);
-  
-  // noInterrupts();
-  bufWritePtr += bytesRead;
-  if (bufWritePtr >= buffer2+BUFLEN) bufWritePtr = buffer1;
-  // interrupts();
-  
-  if (bytesRead < BUFLEN ||
-       (fileLength < 1000000000 && 
-        totalBytesRead >= fileLength)) {
-    fileReadActive = false;
-    Serial.print(F("done reading file, bytes read: ")); 
-    Serial.println(totalBytesRead);
-  }
-}
 
-void openFile(const char* fileName) {
-  Serial.print(F("opening file: ")); Serial.println(fileName);
-  Serial.print(F("freeMemory: ")); Serial.println(freeMemory());
-  if (pf_open(fileName)) fatal(F("fs open"));
-  fileReadActive = true;
-  // noInterrupts();
-  bufWritePtr = buffer1;
-  bufReadPtr  = buffer1;
-  // interrupts();
-  readFile();
-}
-
-////////////////////// BUFFER ACCESS FUNCTIONS //////////////////////
-
+////////////////////// BUFFER ACCESS UTILS //////////////////////
 bool isEqStr (const char* str, int len) {
   bool eq = true;
   uint8_t *ptr = bufPtr;
@@ -141,31 +96,54 @@ uint32_t getUInt32() {
 
 
 ////////////////////// SETUP //////////////////////
-
 void setup() {
   Serial.begin(115200);
-  Serial.print(F("freeMemory: ")); Serial.println(freeMemory());
+  dbg(F("freeMemory: "), freeMemory());
+  if (pf_mount(&fs)) fatal(F("initial mount"));
+}
 
-  if (pf_mount(&fs)) fatal(F("sd & os mount"));
 
-  openFile("TEST.WAV");
-  // openFile(F("TEST.TXT"));
+////////////////////// LOOP //////////////////////
+// one file (song) per loop
+
+void loop(void) {
+file_loop:
+  uint16_t bytesRead;
+  bool bufEmpty, readingBuf1, bufReadDone = false;
+  dbg(F("new file, freeMemory: "), freeMemory());
+  Serial.print(F("opening file: ")); Serial.println(fileName);
+  if (pf_open(fileName)) fatal(F("fs open"));
+
+  // let audio sample reading old file finish
+  while (!bufReadDone) {
+    noInterrupts();
+    bufReadDone = (bufReadPtr == bufWritePtr);
+    interrupts();
+  }
   
+  if (pf_read(buffer1, BUFLEN, &bytesRead)) fatal(F("file init-read"));
+  dbg(F("init bytesRead: "), bytesRead);
+  
+  totalBytesRead = bytesRead;
+  noInterrupts();
+  bufWritePtr = buffer1;
+  bufReadPtr  = buffer1;
+  interrupts();
+
+  bufPtr = buffer1;
   if (!isEqStr("RIFF", 4)) fatal(F("not .wav file"));
   fileLength = getUInt32() + 8;
   if (!isEqStr("WAVE", 4)) fatal(F("no WAVE"));
   
-  uint8_t *eof = bufPtr + fileLength;
-  
-  // chunk loop
-  while (bufPtr < eof) {
+  // chunk_loop:
+  while (true) {
     String chunkType = String((char *)bufPtr).substring(0,4);
     bufPtr += 4;
     uint32_t chunkSize = getUInt32();
     Serial.print(F("\nfound chunk type ")); Serial.print(chunkType);
     Serial.print(F(" with size ")); Serial.print(chunkSize);
     Serial.print(F(" at ")); Serial.print((uint32_t)(bufPtr - buffer));
-    Serial.print(F(" of ")); Serial.println((uint32_t)(eof-buffer));
+    Serial.print(F(" of ")); Serial.println(fileLength);
 
     if (chunkType == "fmt ") {
       if (getUInt16() != 1) fatal(F("not uncompressed Microsoft format"));
@@ -174,33 +152,71 @@ void setup() {
       avgBytesPerSec = getUInt32();
       frameSize      = getUInt16();
       bitsPerSample  = getUInt16();
-      Serial.print(F("channels: "));       Serial.println(channels);
-      Serial.print(F("framesPerSec: "));   Serial.println(framesPerSec);
-      Serial.print(F("avgBytesPerSec: ")); Serial.println(avgBytesPerSec);
-      Serial.print(F("frameSize: "));      Serial.println(frameSize);
-      Serial.print(F("bitsPerSample: "));  Serial.println(bitsPerSample);
+      dbg(F("channels:       "), channels);
+      dbg(F("framesPerSec:   "), framesPerSec);
+      dbg(F("avgBytesPerSec: "), avgBytesPerSec);
+      dbg(F("frameSize:      "), frameSize);
+      dbg(F("bitsPerSample:  "), bitsPerSample);
     }
-    
     else if (chunkType == "fact") {
       numSamples = getUInt32(); 
-      Serial.print(F("numSamples: ")); Serial.println(numSamples);
-    }
+      dbg(F("numSamples:      "), numSamples);
+    }  
+    // assumes one data chunk per file
     else if (chunkType == "data") {
-      while(1);
+      noInterrupts();
+      bufWritePtr = buffer1;
+      bufReadPtr  = buffer1;
+      interrupts();
+      dbg(F("new file, freeMemory: "), freeMemory());
+      
+      // read one SD data block per loop
+      while(true) {
+        uint32_t waited = 0;
+        do {
+          waited++;
+          if (waited == 2) Serial.print(F("waiting ... "));
+          noInterrupts();
+          bufEmpty = (bytesRemovedFromBuf == bytesAddedToBuf);
+          readingBuf1 = bufReadPtr < buffer2;
+          interrupts();
+        } while (!bufEmpty &&
+                ((bufWritePtr == buffer1 &&  readingBuf1) ||
+                 (bufWritePtr == buffer2 && !readingBuf1)));
+        if (waited > 1) Serial.println();
+        
+        if (pf_read((void*)bufWritePtr, BUFLEN, &bytesRead)) fatal(F("data read"));
+        dbg(F("data bytesRead: "), bytesRead);
+        totalBytesRead += bytesRead;
+        
+        noInterrupts();
+        bytesAddedToBuf += bytesRead;
+        bufWritePtr += bytesRead;
+        if (bufWritePtr == buffer2+BUFLEN) bufWritePtr = buffer1;
+        interrupts();
+        
+        if (bytesRead < BUFLEN || totalBytesRead >= fileLength) {
+          dumpHex(buffer, 2*BUFLEN);
+          dbg(F("bytesRead: "), bytesRead);
+          dbg(F("fileLength: "), fileLength);
+          dbg(F("done reading file, totalBytesRead: "), totalBytesRead);
+          // pf_close(); doesn't exist?
+          while(1);
+          goto file_loop;
+        }
+      }
     }
     else fatal(F("invalid chunk type "));
   }
-  
-  // Serial.println(F("Playing"));
-  // while (myFile.available()) {
-  //   myFile.read(buffer, sizeof(buffer));
-  //   uint8_t i;
-  //   for (i=0; i < sizeof(buffer); i++) {
-  //     dac.setVoltage(buffer[i], false);
-  //   } 
-  // }
-  // Serial.println(F("Done playing\r\n"));
 }
 
-void loop(void) {
-}
+
+// Serial.println(F("Playing"));
+// while (myFile.available()) {
+//   myFile.read(buffer, sizeof(buffer));
+//   uint8_t i;
+//   for (i=0; i < sizeof(buffer); i++) {
+//     dac.setVoltage(buffer[i], false);
+//   } 
+// }
+// Serial.println(F("Done playing\r\n"));
